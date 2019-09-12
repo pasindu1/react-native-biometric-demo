@@ -9,7 +9,6 @@ const BAR_SPACE = 10
 class Slides extends Component {
     constructor(props){
         super(props)
-        
     }
 
     render() {

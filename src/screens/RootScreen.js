@@ -20,7 +20,7 @@ class RootScreen extends Component{
                   <Text> Go to Home Screen </Text>
                 </TouchableOpacity>
 
-            </View>
+            </View> 
         )
     }
 }

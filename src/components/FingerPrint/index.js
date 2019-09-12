@@ -2,7 +2,7 @@
 import React, {Component} from 'react';
 import {View, AppState, PanResponder} from 'react-native';
 import Biometrics from 'react-native-biometrics';
-import NavigationService from '../../utils/navigator';
+import AsyncStorage from '@react-native-community/async-storage';
 
 let myVar = null;
 let startTimeMS = null;
@@ -12,14 +12,6 @@ class FingerPrint extends Component {
   constructor(props) {
     super(props);
     this._panResponder = PanResponder.create({
-      //   onStartShouldSetPanResponder: (evt, gestureState) => {
-      //     if (myVar !== null) {
-      //       clearTimeout(myVar);
-      //     }
-      //     console.log('new')
-      //     return true;
-
-      //   },
       onStartShouldSetPanResponderCapture: (evt, gestureState) => {
         if (gestureState.dx == 0 && gestureState.dy == 0) {
           this.getStartTimeInSeconds.bind(this);
@@ -28,14 +20,7 @@ class FingerPrint extends Component {
           }
           myVar = setTimeout(this._openAuthenticator.bind(this), AWAIT_TIME);
         }
-      },
-      //   onPanResponderRelease: (evt, gestureState) => {
-      //     this.getStartTimeInSeconds.bind(this);
-      //     if (myVar !== null) {
-      //         clearTimeout(myVar);
-      //       }
-      //     myVar = setTimeout(this._openAuthenticator.bind(this), AWAIT_TIME);
-      //   },
+      }
     });
     this.state = {
       appState: AppState.currentState,
@@ -48,12 +33,26 @@ class FingerPrint extends Component {
     return startTimeMS;
   }
 
+  _retrieveData = async () => {
+    try {
+      const value = await AsyncStorage.getItem('fingerPrintToken');
+      if (value !== null) {
+        // We have data!!
+        // const timeDifference = timestampNew - value;
+        this._openAuthenticator();
+      } else if (value === null && myVar === null) {
+        myVar = setTimeout(this._openAuthenticator.bind(this), AWAIT_TIME);
+        this.getStartTimeInSeconds.bind(this);
+      }
+    } catch (error) {
+      // Error retrieving data
+      console.log('error', error);
+    }
+  };
+
   componentDidMount() {
     AppState.addEventListener('change', this._handleAppStateChange);
-    if (myVar === null) {
-      setTimeout(this._openAuthenticator.bind(this), AWAIT_TIME);
-      this.getStartTimeInSeconds.bind(this);
-    }
+    this._retrieveData();
   }
 
   componentWillUnmount() {
@@ -90,7 +89,32 @@ class FingerPrint extends Component {
     });
   }
 
+  _storeData = async () => {
+    const timestamp = (new Date() / 1000) | 0;
+
+    try {
+      await AsyncStorage.setItem('fingerPrintToken', timestamp.toString());
+    } catch (error) {
+      // Error saving data
+      console.log('error', error);
+    }
+  };
+
+  _clearData = async () => {
+    try {
+      await AsyncStorage.removeItem('fingerPrintToken');
+    } catch (error) {
+      // Error saving data
+      console.log('error', error);
+    }
+  };
+
   _handleAppStateChange = nextAppState => {
+    if (nextAppState === 'background' || nextAppState === 'inactive') {
+      this._storeData();
+    } else if (nextAppState === 'active') {
+      this._clearData();
+    }
     this.setState({appState: nextAppState});
   };
 
